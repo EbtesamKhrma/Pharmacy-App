@@ -66,7 +66,6 @@ class PharmacistController extends Controller
 
         ], 201);
     }
-
     public function login(Request $request): \Illuminate\Http\JsonResponse
     {
         $request->validate([
