@@ -4,12 +4,15 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Supplier extends Model
+class Customer extends Model
 {
 
     protected $guarded = [];
-    public function orders()
+
+    public function sales()
     {
-        return $this->hasMany(Order::class);
+        return $this->hasMany(Sale::class);
     }
 }
+
+

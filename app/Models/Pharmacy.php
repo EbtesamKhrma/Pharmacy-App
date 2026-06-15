@@ -8,7 +8,7 @@ class Pharmacy extends Model
 {
     protected $guarded = [];
 
-    protected $hidden = ['updated_at', 'created_at'];
+    protected $hidden = ['updated_at', 'created_at','status'];
 
     public function pharmacist(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {

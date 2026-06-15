@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('pharmacy_address');
             $table->json('certificate');
             $table->json('license');
-            $table->enum('status', ['pending', 'approved'])->default('pending');
+            $table->enum('status', ['pending', 'approved','rejected'])->default('pending');
             $table->timestamps();
         });
     }
