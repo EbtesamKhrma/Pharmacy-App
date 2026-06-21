@@ -11,10 +11,20 @@ class Pharmacist extends Authenticatable
 
     protected $guarded = [];
 
-    protected $hidden = ['password'];
+    protected $hidden = ['password','created_at','updated_at'];
 
-    public function pharmacy()
+    public function pharmacies()
     {
-        return $this->hasOne(Pharmacy::class);
+        return $this->hasMany(Pharmacy::class);
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class, 'pharmacist_id');
+    }
+
+    public function ratings()
+    {
+        return $this->hasMany(Rating::class, 'pharmacist_id');
     }
 }

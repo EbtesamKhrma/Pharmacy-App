@@ -20,8 +20,8 @@ class MedicineController extends Controller
             'quantity'          => 'required|integer',
             'expire_date'       => 'required|date',
             'manufacturer'      => 'required|string',
-            'reorder_level'     => 'required|integer',
-            'qr_code'           => 'required|string',
+            'reorder_level'     => 'nullable|integer',
+            'qr_code'           => 'required|decimal',
         ]);
 
         $medicine = Medicine::create($request->all());
@@ -78,7 +78,7 @@ class MedicineController extends Controller
             'expire_date'       => 'sometimes|date',
             'manufacturer'      => 'sometimes|string',
             'reorder_level'     => 'sometimes|integer',
-            'qr_code'           => 'sometimes|string',
+            'qr_code'           => 'sometimes|decimal',
         ]);
 
         $medicine->update($request->all());
@@ -108,13 +108,18 @@ class MedicineController extends Controller
                 ->exists();
 
             if (!$alreadyNotified) {
+
+                $pharmacy = Pharmacy::find($request->pharmacy_id);
+
+                $pharmacistId = $pharmacy->pharamcist_id;
+
                 Notification::create([
-                    'pharmacy_id' => $request->pharmacy_id,
-                    'title'       => 'تنبيه انتهاء صلاحية',
-                    'message'     => 'دواء ' . $medicine->name . ' ستنتهي صلاحيته بتاريخ ' . $medicine->expire_date,
-                    'type'        => 'expiry',
-                    'is_read'     => false,
-                    'date'        => now(),
+                    'pharamcist_id' => $pharmacistId,
+                    'title' => 'Low Stock',
+                    'message' => 'Medicine is running low',
+                    'type' => 'warning',
+                    'date' => now(),
+                    'is_read' => false,
                 ]);
             }
         }

@@ -8,18 +8,13 @@ class Sale extends Model
 {
 
     protected $guarded = [];
-    public function saleItems()
+    public function pharmacy()
+    {
+        return $this->belongsTo(Pharmacy::class);
+    }
+
+    public function items()
     {
         return $this->hasMany(SaleItem::class);
-    }
-
-    public function customer()
-    {
-        return $this->belongsTo(Customer::class);
-    }
-
-    public function pharmacist()
-    {
-        return $this->belongsTo(Pharmacist::class);
     }
 }

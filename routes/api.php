@@ -7,14 +7,23 @@ use App\Http\Controllers\SaleController;
 use App\Http\Controllers\MedicineController;
 use App\Http\Controllers\RatingController;
 
-Route::post('/register/pharmacist', [PharmacistController::class, 'registerPharmacist']);
-Route::post('/register/pharmacy', [PharmacistController::class, 'registerPharmacy']);
-Route::post('/login', [PharmacistController::class, 'login']);
-Route::post('/admin/pharmacy/{id}/approve', [PharmacistController::class, 'approvePharmacy']);
-Route::post('/admin/pharmacy/{id}/rejectPharmacy', [PharmacistController::class, 'rejectPharmacy']);
-Route::post('/logout', [PharmacistController::class, 'logout']);
+Route::post('/register',[PharmacistController::class, 'register']);
+Route::post('/register/pharmacy',[PharmacistController::class, 'registerPharmacy']);
+Route::post('/login',[PharmacistController::class, 'login']);
 
+
+Route::prefix('admin')->group(function () {
+    Route::get('/pharmacies',               [PharmacistController::class, 'getAllPharmacies']);
+    Route::get('/pharmacies/pending',       [PharmacistController::class, 'getPendingPharmacies']);
+    Route::post('/pharmacies/{id}/approve', [PharmacistController::class, 'approvePharmacy']);
+    Route::post('/pharmacies/{id}/reject',  [PharmacistController::class, 'rejectPharmacy']);
+});
 Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/logout',           [PharmacistController::class, 'logout']);
+    Route::delete('/delete-account', [PharmacistController::class, 'deleteAccount']);
+    Route::get('/profile',           [PharmacistController::class, 'getProfile']);
+    Route::post('/profile/update',   [PharmacistController::class, 'updateProfile']);
+    Route::post('/pharmacy/add',     [PharmacistController::class, 'addPharmacy']);
     Route::post('/sale/create', [SaleController::class, 'createSale']);
     Route::get('/sale/daily', [SaleController::class, 'getDailySales']);
     Route::get('/medicines', [MedicineController::class, 'getMedicines']);

@@ -7,4 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 class Rating extends Model
 {
     protected $guarded = [];
+    public function pharmacist()
+    {
+        return $this->belongsTo(Pharmacist::class, 'pharmacist_id');
+    }
 }

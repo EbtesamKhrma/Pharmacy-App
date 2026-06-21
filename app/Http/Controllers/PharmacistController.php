@@ -6,47 +6,47 @@ use App\Models\Pharmacist;
 use App\Models\Pharmacy;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
 class PharmacistController extends Controller
 {
+    // ===== PHARMACIST =====
 
-    public function registerPharmacist(Request $request)
+    public function register(Request $request): \Illuminate\Http\JsonResponse
     {
         $request->validate([
-            'name'     => 'required|string',
-            'email'    => 'required|email|unique:pharmacists,email',
-            'password' => 'required|min:6',
-            'profile'  => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp'],
+            'name'          => 'required|string',
+            'email'         => 'required|email|unique:pharmacists,email',
+            'password'      => 'required|min:6',
+            'profile_image' => 'nullable|image|mimes:jpg,jpeg,png,webp',
         ]);
 
-        $profile = null;
-        if ($request->hasFile('profile')) {
-            $profile = $request->file('profile')->store('profiles', 'public');
+        $profileImage = null;
+        if ($request->hasFile('profile_image')) {
+            $profileImage = $request->file('profile_image')->store('profiles', 'public');
         }
 
         $pharmacist = Pharmacist::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
-            'profile'  => $profile,
+            'name'          => $request->name,
+            'email'         => $request->email,
+            'password'      => Hash::make($request->password),
+            'profile_image' => $profileImage ? json_encode([$profileImage]) : null,
         ]);
 
         return response()->json([
-         //   'status'  => true,
-            'message' => 'Pharmacist registered successfully',
-            'data'    => $pharmacist,
+            'message'       => 'Pharmacist registered successfully',
+            'pharmacist_id' => $pharmacist->id,
         ], 201);
     }
 
-
-    public function registerPharmacy(Request $request)
+    public function registerPharmacy(Request $request): \Illuminate\Http\JsonResponse
     {
         $request->validate([
             'pharmacist_id'    => 'required|exists:pharmacists,id',
             'pharmacy_name'    => 'required|string',
             'pharmacy_address' => 'required|string',
-            'certificate'      => ['required', 'file', 'mimes:jpg,jpeg,png,pdf'],
-            'license'          => ['required', 'file', 'mimes:jpg,jpeg,png,pdf'],
+            'certificate'      => 'required|file|mimes:jpg,jpeg,png,pdf',
+            'license'          => 'required|file|mimes:jpg,jpeg,png,pdf',
         ]);
 
         $certificate = $request->file('certificate')->store('certificates', 'public');
@@ -62,13 +62,12 @@ class PharmacistController extends Controller
         ]);
 
         return response()->json([
-            //'status'  => true,
-            'message' => 'Pharmacy registered successfully, waiting for admin approval',
-            'data'    => $pharmacy,
+            'message'  => 'Pharmacy registered successfully, waiting for admin approval',
+            'pharmacy' => $pharmacy,
         ], 201);
     }
 
-    public function login(Request $request)
+    public function login(Request $request): \Illuminate\Http\JsonResponse
     {
         $request->validate([
             'email'    => 'required|email',
@@ -79,100 +78,184 @@ class PharmacistController extends Controller
 
         if (!$pharmacist || !Hash::check($request->password, $pharmacist->password)) {
             return response()->json([
-             //   'status'  => false,
                 'message' => 'Invalid credentials',
             ], 401);
         }
 
-        $pharmacy = $pharmacist->pharmacy;
-
+        $pharmacy = $pharmacist->pharmacies()->first();
 
         if (!$pharmacy) {
             return response()->json([
-              //  'status'  => false,
-                'message' => 'You must register a pharmacy first',
-            ], 403);
+                'message' => 'No pharmacy found for this pharmacist',
+            ], 404);
         }
 
         if ($pharmacy->status === 'pending') {
             return response()->json([
-               // 'status'  => false,
-                'message' => 'Your pharmacy is pending admin approval',
+                'message' => 'Your account is pending admin approval',
             ], 403);
         }
 
         if ($pharmacy->status === 'rejected') {
             return response()->json([
-             //   'status'  => false,
-                'message' => 'Your pharmacy has been rejected',
+                'message' => 'Your account has been rejected',
             ], 403);
         }
 
         $token = $pharmacist->createToken('pharmacist-token')->plainTextToken;
 
         return response()->json([
-           // 'status'  => true,
-            'message' => 'Login successful',
-            'token'   => $token,
+            'message'    => 'Login successful',
+            'token'      => $token,
+         //   'pharmacist' => $pharmacist,
+        //    'pharmacy'   => $pharmacy,
         ]);
     }
 
-    public function logout(Request $request)
+    public function logout(Request $request): \Illuminate\Http\JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
 
         return response()->json([
-          //  'status'  => true,
             'message' => 'Logged out successfully',
         ]);
     }
 
-    public function deleteAccount(Request $request)
+    public function deleteAccount(Request $request): \Illuminate\Http\JsonResponse
     {
         $pharmacist = $request->user();
-
-        $pharmacist->tokens()->delete();
+        $pharmacist->currentAccessToken()->delete();
         $pharmacist->delete();
 
         return response()->json([
-         //   'status'  => true,
             'message' => 'Account deleted successfully',
         ]);
     }
 
-    public function getProfile(Request $request)
+    public function getProfile(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $pharmacist = $request->user();
+        $pharmacies = $pharmacist->pharmacies()->get();
+
+        return response()->json([
+            'pharmacist' => $pharmacist,
+            'pharmacies' => $pharmacies,
+        ]);
+    }
+
+    public function updateProfile(Request $request): \Illuminate\Http\JsonResponse
     {
         $pharmacist = $request->user();
 
+        $request->validate([
+            'name'          => 'sometimes|string',
+            'email'         => 'sometimes|email|unique:pharmacists,email,' . $pharmacist->id,
+            'password'      => 'sometimes|min:6',
+            'profile_image' => 'sometimes|image|mimes:jpg,jpeg,png,webp',
+        ]);
+        if ($request->hasFile('profile_image')) {
+            $profileImage = $request->file('profile_image')->store('profiles', 'public');
+            $pharmacist->profile_image = json_encode([$profileImage]);
+        }
+        if ($request->hasFile('profile_image')) {
+            $profileImage = $request->file('profile_image')->store('profiles', 'public');
+            $pharmacist->profile_image = $profileImage;
+        }
+
+        if ($request->name)     $pharmacist->name     = $request->name;
+        if ($request->email)    $pharmacist->email    = $request->email;
+        if ($request->password) $pharmacist->password = Hash::make($request->password);
+
+        $pharmacist->save();
+
         return response()->json([
-           // 'status' => true,
-            'data'   => [
-                'pharmacist' => $pharmacist,
-                'pharmacy'   => $pharmacist->pharmacy
-            ]
+            'message'    => 'Profile updated successfully',
+           'pharmacist' => $pharmacist,
         ]);
     }
 
-    public function approvePharmacy($id)
+    public function addPharmacy(Request $request): \Illuminate\Http\JsonResponse
     {
-        $pharmacy = Pharmacy::findOrFail($id);
-        $pharmacy->status = 'approved';
-        $pharmacy->save();
+        $request->validate([
+            'pharmacy_name'    => 'required|string',
+            'pharmacy_address' => 'required|string',
+            'certificate'      => 'required|file|mimes:jpg,jpeg,png,pdf',
+            'license'          => 'required|file|mimes:jpg,jpeg,png,pdf',
+        ]);
+
+        $certificate = $request->file('certificate')->store('certificates', 'public');
+        $license     = $request->file('license')->store('licenses', 'public');
+
+        $pharmacy = Pharmacy::create([
+            'pharmacist_id'    => $request->user()->id,
+            'pharmacy_name'    => $request->pharmacy_name,
+            'pharmacy_address' => $request->pharmacy_address,
+            'certificate'      => json_encode([$certificate]),
+            'license'          => json_encode([$license]),
+            'status'           => 'pending',
+        ]);
 
         return response()->json([
-        //    'status'  => true,
-            'message' => 'Pharmacy approved successfully'
+            'message'  => 'Pharmacy added successfully, waiting for admin approval',
+            'pharmacy' => $pharmacy,
+        ], 201);
+    }
+
+    // ===== ADMIN =====
+
+    public function getAllPharmacies(): \Illuminate\Http\JsonResponse
+    {
+        $pharmacies = Pharmacy::with('pharmacist')->get();
+
+        return response()->json([
+            'pharmacies' => $pharmacies,
         ]);
     }
-    public function rejectPharmacy($id)
+
+    public function getPendingPharmacies(): \Illuminate\Http\JsonResponse
     {
-        $pharmacy = Pharmacy::findOrFail($id);
-        $pharmacy->status = 'rejected';
-        $pharmacy->save();
+        $pharmacies = Pharmacy::where('status', 'pending')
+            ->with('pharmacist')
+            ->get();
 
         return response()->json([
-           // 'status'  => true,
-            'message' => 'Pharmacy rejected'
+            'pharmacies' => $pharmacies,
+        ]);
+    }
+
+    public function approvePharmacy($id): \Illuminate\Http\JsonResponse
+    {
+        $pharmacy = Pharmacy::findOrFail($id);
+
+        if ($pharmacy->status !== 'pending') {
+            return response()->json([
+                'message' => 'This pharmacy is already ' . $pharmacy->status,
+            ], 400);
+        }
+
+        $pharmacy->update(['status' => 'approved']);
+
+        return response()->json([
+            'message'  => 'Pharmacy approved successfully',
+            'pharmacy' => $pharmacy,
+        ]);
+    }
+
+    public function rejectPharmacy($id): \Illuminate\Http\JsonResponse
+    {
+        $pharmacy = Pharmacy::findOrFail($id);
+
+        if ($pharmacy->status !== 'pending') {
+            return response()->json([
+                'message' => 'This pharmacy is already ' . $pharmacy->status,
+            ], 400);
+        }
+
+        $pharmacy->update(['status' => 'rejected']);
+
+        return response()->json([
+            'message'  => 'Pharmacy rejected successfully',
+            'pharmacy' => $pharmacy,
         ]);
     }
 }

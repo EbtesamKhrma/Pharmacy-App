@@ -10,8 +10,23 @@ class Pharmacy extends Model
 
     protected $hidden = ['updated_at', 'created_at','status'];
 
-    public function pharmacist(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function pharmacist()
     {
-        return $this->belongsTo(Pharmacist::class);
+        return $this->belongsTo(Pharmacist::class, 'pharmacist_id');
+    }
+
+    public function medicines()
+    {
+        return $this->hasMany(Medicine::class);
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function sales()
+    {
+        return $this->hasMany(Sale::class);
     }
 }
