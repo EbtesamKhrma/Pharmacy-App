@@ -7,8 +7,12 @@ use Illuminate\Database\Eloquent\Model;
 class Notification extends Model
 {
     protected $guarded = [];
-    public function pharmacist()
+    public function employees()
     {
-        return $this->belongsTo(Pharmacist::class, 'pharmacist_id');
+        return $this->hasMany(Employee::class);
+    }
+    public function pharmacy()
+    {
+        return $this->belongsTo(Pharmacy::class, 'pharmacy_id');
     }
 }

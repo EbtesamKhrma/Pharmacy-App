@@ -2,6 +2,7 @@
 
 use App\Models\User;
 
+
 return [
 
     /*
@@ -43,7 +44,34 @@ return [
             'provider' => 'users',
         ],
     ],
+    'guards' => [
+        'web' => [
+            'driver'   => 'session',
+            'provider' => 'users',
+        ],
 
+        'pharmacist' => [
+            'driver'   => 'sanctum',
+            'provider' => 'pharmacists',
+        ],
+
+        'employee' => [
+            'driver'   => 'sanctum',
+            'provider' => 'employees',
+        ],
+    ],
+
+    'providers' => [
+        'pharmacists' => [
+            'driver' => 'eloquent',
+            'model'  => App\Models\Pharmacist::class,
+        ],
+
+        'employees' => [
+            'driver' => 'eloquent',
+            'model'  => App\Models\Employee::class,
+        ],
+    ],
     /*
     |--------------------------------------------------------------------------
     | User Providers

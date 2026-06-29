@@ -6,18 +6,16 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-
     public function up(): void
     {
         Schema::create('ratings', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('pharmacist_id');
+            $table->foreignId('pharmacist_id')->constrained('pharmacists')->onDelete('cascade');
             $table->date('date');
             $table->unsignedTinyInteger('stars');
             $table->timestamps();
         });
     }
-
 
     public function down(): void
     {

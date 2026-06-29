@@ -4,22 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class Sale extends Model
+class Task extends Model
 {
-
     protected $guarded = [];
+
     public function pharmacy()
     {
         return $this->belongsTo(Pharmacy::class);
-    }
-
-    public function items()
-    {
-        return $this->hasMany(SaleItem::class);
-    }
-    public function pharmacist()
-    {
-        return $this->belongsTo(Pharmacist::class);
     }
 
     public function employee()

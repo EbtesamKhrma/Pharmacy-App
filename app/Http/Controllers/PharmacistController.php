@@ -4,14 +4,12 @@ namespace App\Http\Controllers;
 
 use App\Models\Pharmacist;
 use App\Models\Pharmacy;
+use App\Models\Employee;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Storage;
 
 class PharmacistController extends Controller
 {
-    // ===== PHARMACIST =====
-
     public function register(Request $request): \Illuminate\Http\JsonResponse
     {
         $request->validate([
@@ -77,48 +75,35 @@ class PharmacistController extends Controller
         $pharmacist = Pharmacist::where('email', $request->email)->first();
 
         if (!$pharmacist || !Hash::check($request->password, $pharmacist->password)) {
-            return response()->json([
-                'message' => 'Invalid credentials',
-            ], 401);
+            return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
         $pharmacy = $pharmacist->pharmacies()->first();
 
         if (!$pharmacy) {
-            return response()->json([
-                'message' => 'No pharmacy found for this pharmacist',
-            ], 404);
+            return response()->json(['message' => 'No pharmacy found for this pharmacist'], 404);
         }
 
         if ($pharmacy->status === 'pending') {
-            return response()->json([
-                'message' => 'Your account is pending admin approval',
-            ], 403);
+            return response()->json(['message' => 'Your account is pending admin approval'], 403);
         }
 
         if ($pharmacy->status === 'rejected') {
-            return response()->json([
-                'message' => 'Your account has been rejected',
-            ], 403);
+            return response()->json(['message' => 'Your account has been rejected'], 403);
         }
 
         $token = $pharmacist->createToken('pharmacist-token')->plainTextToken;
 
         return response()->json([
-            'message'    => 'Login successful',
-            'token'      => $token,
-         //   'pharmacist' => $pharmacist,
-        //    'pharmacy'   => $pharmacy,
+            'message' => 'Login successful',
+            'token'   => $token,
         ]);
     }
 
     public function logout(Request $request): \Illuminate\Http\JsonResponse
     {
         $request->user()->currentAccessToken()->delete();
-
-        return response()->json([
-            'message' => 'Logged out successfully',
-        ]);
+        return response()->json(['message' => 'Logged out successfully']);
     }
 
     public function deleteAccount(Request $request): \Illuminate\Http\JsonResponse
@@ -126,16 +111,19 @@ class PharmacistController extends Controller
         $pharmacist = $request->user();
         $pharmacist->currentAccessToken()->delete();
         $pharmacist->delete();
-
-        return response()->json([
-            'message' => 'Account deleted successfully',
-        ]);
+        return response()->json(['message' => 'Account deleted successfully']);
     }
 
+    // ===== عرض البروفايل مع كل الصيدليات وعدد موظفين كل صيدلية =====
     public function getProfile(Request $request): \Illuminate\Http\JsonResponse
     {
         $pharmacist = $request->user();
-        $pharmacies = $pharmacist->pharmacies()->get();
+
+        $pharmacies = $pharmacist->pharmacies()
+            ->withCount(['employees' => function ($query) {
+                $query->where('status', 'approved');
+            }])
+            ->get();
 
         return response()->json([
             'pharmacist' => $pharmacist,
@@ -143,6 +131,7 @@ class PharmacistController extends Controller
         ]);
     }
 
+    // ===== تعديل بيانات الصيدلاني الشخصية =====
     public function updateProfile(Request $request): \Illuminate\Http\JsonResponse
     {
         $pharmacist = $request->user();
@@ -153,13 +142,10 @@ class PharmacistController extends Controller
             'password'      => 'sometimes|min:6',
             'profile_image' => 'sometimes|image|mimes:jpg,jpeg,png,webp',
         ]);
+
         if ($request->hasFile('profile_image')) {
             $profileImage = $request->file('profile_image')->store('profiles', 'public');
             $pharmacist->profile_image = json_encode([$profileImage]);
-        }
-        if ($request->hasFile('profile_image')) {
-            $profileImage = $request->file('profile_image')->store('profiles', 'public');
-            $pharmacist->profile_image = $profileImage;
         }
 
         if ($request->name)     $pharmacist->name     = $request->name;
@@ -170,7 +156,39 @@ class PharmacistController extends Controller
 
         return response()->json([
             'message'    => 'Profile updated successfully',
-           'pharmacist' => $pharmacist,
+            'pharmacist' => $pharmacist,
+        ]);
+    }
+
+    // ===== NEW: تعديل معلومات صيدلية معينة =====
+    public function updatePharmacy(Request $request, $id): \Illuminate\Http\JsonResponse
+    {
+        $pharmacist = $request->user();
+
+        // التحقق إن الصيدلية تابعة للصيدلاني الحالي
+        $pharmacy = Pharmacy::where('id', $id)
+            ->where('pharmacist_id', $pharmacist->id)
+            ->first();
+
+        if (!$pharmacy) {
+            return response()->json([
+                'message' => 'الصيدلية غير موجودة أو لا تملك صلاحية تعديلها',
+            ], 404);
+        }
+
+        $request->validate([
+            'pharmacy_name'    => 'sometimes|string',
+            'pharmacy_address' => 'sometimes|string',
+        ]);
+
+        if ($request->pharmacy_name)    $pharmacy->pharmacy_name    = $request->pharmacy_name;
+        if ($request->pharmacy_address) $pharmacy->pharmacy_address = $request->pharmacy_address;
+
+        $pharmacy->save();
+
+        return response()->json([
+            'message'  => 'تم تعديل معلومات الصيدلية بنجاح',
+            'pharmacy' => $pharmacy,
         ]);
     }
 
@@ -206,21 +224,13 @@ class PharmacistController extends Controller
     public function getAllPharmacies(): \Illuminate\Http\JsonResponse
     {
         $pharmacies = Pharmacy::with('pharmacist')->get();
-
-        return response()->json([
-            'pharmacies' => $pharmacies,
-        ]);
+        return response()->json(['pharmacies' => $pharmacies]);
     }
 
     public function getPendingPharmacies(): \Illuminate\Http\JsonResponse
     {
-        $pharmacies = Pharmacy::where('status', 'pending')
-            ->with('pharmacist')
-            ->get();
-
-        return response()->json([
-            'pharmacies' => $pharmacies,
-        ]);
+        $pharmacies = Pharmacy::where('status', 'pending')->with('pharmacist')->get();
+        return response()->json(['pharmacies' => $pharmacies]);
     }
 
     public function approvePharmacy($id): \Illuminate\Http\JsonResponse
@@ -228,17 +238,11 @@ class PharmacistController extends Controller
         $pharmacy = Pharmacy::findOrFail($id);
 
         if ($pharmacy->status !== 'pending') {
-            return response()->json([
-                'message' => 'This pharmacy is already ' . $pharmacy->status,
-            ], 400);
+            return response()->json(['message' => 'This pharmacy is already ' . $pharmacy->status], 400);
         }
 
         $pharmacy->update(['status' => 'approved']);
-
-        return response()->json([
-            'message'  => 'Pharmacy approved successfully',
-            'pharmacy' => $pharmacy,
-        ]);
+        return response()->json(['message' => 'Pharmacy approved successfully', 'pharmacy' => $pharmacy]);
     }
 
     public function rejectPharmacy($id): \Illuminate\Http\JsonResponse
@@ -246,16 +250,10 @@ class PharmacistController extends Controller
         $pharmacy = Pharmacy::findOrFail($id);
 
         if ($pharmacy->status !== 'pending') {
-            return response()->json([
-                'message' => 'This pharmacy is already ' . $pharmacy->status,
-            ], 400);
+            return response()->json(['message' => 'This pharmacy is already ' . $pharmacy->status], 400);
         }
 
         $pharmacy->update(['status' => 'rejected']);
-
-        return response()->json([
-            'message'  => 'Pharmacy rejected successfully',
-            'pharmacy' => $pharmacy,
-        ]);
+        return response()->json(['message' => 'Pharmacy rejected successfully', 'pharmacy' => $pharmacy]);
     }
 }

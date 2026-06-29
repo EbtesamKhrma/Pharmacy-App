@@ -18,11 +18,6 @@ class Pharmacist extends Authenticatable
         return $this->hasMany(Pharmacy::class);
     }
 
-    public function notifications()
-    {
-        return $this->hasMany(Notification::class, 'pharmacist_id');
-    }
-
     public function ratings()
     {
         return $this->hasMany(Rating::class, 'pharmacist_id');

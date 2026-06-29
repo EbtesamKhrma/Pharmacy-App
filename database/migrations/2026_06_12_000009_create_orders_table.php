@@ -15,7 +15,10 @@ return new class extends Migration
             $table->id();
             $table->unsignedBigInteger('supplier_id');
             $table->unsignedBigInteger('pharmacy_id');
+            $table->foreign('supplier_id')->references('id')->on('suppliers')->onDelete('cascade');
+            $table->foreign('pharmacy_id')->references('id')->on('pharmacies')->onDelete('cascade');
             $table->date('date');
+            $table->enum('payment_method', ['cash', 'card']);
             $table->enum('status', ['pending', 'received', 'cancelled'])->default('pending');
             $table->decimal('total_price');
             $table->timestamps();

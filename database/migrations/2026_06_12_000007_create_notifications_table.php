@@ -14,8 +14,8 @@ return new class extends Migration
             $table->text('message');
             $table->boolean('is_read')->default(false);
             $table->string('type');
-            $table->dateTime('date');
-            $table->unsignedBigInteger('pharmacy_id');
+            $table->timestamp('date')->useCurrent();
+            $table->foreignId('pharmacy_id')->constrained('pharmacies')->onDelete('cascade');
             $table->timestamps();
         });
     }

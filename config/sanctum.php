@@ -38,7 +38,7 @@ return [
     */
 
     'guard' => ['web'],
-
+    'guard' => ['pharmacist', 'employee'],
     /*
     |--------------------------------------------------------------------------
     | Expiration Minutes
